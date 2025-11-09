@@ -124,8 +124,8 @@ GET  /api/investment/returns
 
 ### **Phase 5: Investment Dashboard** 🔄
 **Started:** Nov 9, 2025 (2:54 PM)  
-**Status:** Step 3 of 7 complete  
-**Estimated Completion:** Today (~1 hour remaining)
+**Status:** Step 6 of 7 complete  
+**Estimated Completion:** Today (~15 min remaining - final testing)
 
 #### **✅ Completed Steps:**
 
@@ -148,7 +148,7 @@ GET  /api/investment/returns
 - Loading states for all data
 - Conditional alerts (KYC pending, no account)
 
-**Step 3: Portfolio Performance Chart** ✅ (Just completed)
+**Step 3: Portfolio Performance Chart** ✅
 - Created PortfolioChart component with TradingView lightweight-charts
 - Time period toggles (7D, 1M, 3M, 1Y, ALL)
 - Interactive area chart with gradient fill
@@ -157,35 +157,46 @@ GET  /api/investment/returns
 - Responsive design with loading/empty states
 - Fixed API endpoint for investment returns
 
+**Step 4: Deposits History Table** ✅
+- Created DepositsTable component with full functionality
+- Sortable columns (date, amount, status)
+- Status badges with color coding (pending, confirming, confirmed, failed)
+- Currency icons for all supported cryptos
+- Date formatting with date-fns
+- Summary statistics (total deposits, confirmed count)
+- Loading and empty states
+- Responsive table with hover effects
+
+**Step 5: Returns History Section** ✅
+- Created ReturnsHistory component with rich visualization
+- Grouped returns by month for better organization
+- Summary card showing total returns earned
+- Return rate percentage display
+- Period start/end dates for each return
+- Statistics: total payments, average return, average rate
+- Loading and empty states
+- Green color scheme for positive returns
+
+**Step 6: Payout/Withdrawal Feature** ✅ (Just completed)
+- Created PayoutModal component with comprehensive form
+- Form validation (min $50, balance check, address validation)
+- Support for 7 cryptocurrencies
+- Updated Payout interface to match backend
+- Payout button with active account check
+- Pending payouts display section
+- Toast notifications for success/errors
+- Responsive modal with loading states
+
 #### **🔜 Remaining Steps:**
 
-**Step 4: Deposits History Table** (Next - ~20 min)
-- Fetch deposits from API
-- Table with columns: Date, Amount, Currency, Status
-- Status badges (pending, confirmed, failed)
-- Sort and filter functionality
-- Pagination for large datasets
-
-**Step 5: Returns History Section** (~20 min)
-- Fetch investment returns from API
-- Display return dates and amounts
-- Show return percentages
-- Calculate total returns earned
-- Group by month/quarter
-
-**Step 6: Payout/Withdrawal Feature** (~30 min)
-- Payout request modal
-- Form: amount, crypto address, currency
-- Validation (min amount, available balance)
-- Submit payout request to API
-- Show pending payout requests
-- Status tracking
-
-**Step 7: Testing & Polish** (~15 min)
+**Step 7: Testing & Polish** (Next - ~15 min)
 - Test all features on production
-- Verify data loads correctly
-- Test payout request flow
-- Check responsive design
+- Verify data loads correctly  
+- Test deposit and payout flows
+- Check responsive design on mobile
+- Verify chart interactions
+- Test sorting/filtering on tables
+- Create completion document
 - Fix any bugs found
 
 ---
