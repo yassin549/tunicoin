@@ -1,0 +1,10 @@
+# Railway Configuration for ExtraCoin Platform
+# https://docs.railway.app/deploy/config-as-code
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+numReplicas = 1
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 10

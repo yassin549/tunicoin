@@ -1,66 +1,52 @@
 import Link from 'next/link';
-import { ArrowRight, TrendingUp, Bot, BarChart3, Shield } from 'lucide-react';
+import { ArrowRight, Bot, BarChart3, Shield, Zap, LineChart, Globe } from 'lucide-react';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center space-x-2">
-            <TrendingUp className="h-8 w-8 text-primary-600" />
-            <span className="text-2xl font-bold gradient-text">Tunicoin</span>
-          </div>
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="#features" className="text-gray-600 hover:text-primary-600 transition">
-              Features
-            </Link>
-            <Link href="#how-it-works" className="text-gray-600 hover:text-primary-600 transition">
-              How It Works
-            </Link>
-            <Link href="#pricing" className="text-gray-600 hover:text-primary-600 transition">
-              Pricing
-            </Link>
-            <Link
-              href="/auth/signin"
-              className="rounded-lg bg-primary-600 px-6 py-2 text-white transition hover:bg-primary-700"
-            >
-              Get Started
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="mx-auto max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200 text-green-700 text-sm font-semibold mb-4">
+            <Shield className="h-4 w-4" />
+            Regulated by CMF
+          </div>
           <h1 className="mb-6 text-5xl font-bold leading-tight text-gray-900 md:text-6xl">
-            Master CFD Trading with
+            Trade & Invest with
             <br />
-            <span className="gradient-text">AI-Powered Strategies</span>
+            <span className="gradient-text">AI-Powered Technology</span>
           </h1>
           <p className="mb-8 text-xl text-gray-600">
-            Learn to trade CFD futures in a realistic simulated environment. No real money at risk.
-            Subscribe to AI trading agents and test your strategies.
+            Practice CFD trading risk-free OR invest real money with our proven AI engine. 
+            Two powerful platforms, one account.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/auth/signup"
-              className="group inline-flex items-center justify-center rounded-lg bg-primary-600 px-8 py-3 text-lg font-semibold text-white transition hover:bg-primary-700"
-            >
-              Start Trading Free
-              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            <Link href="/invest">
+              <Button size="xl" className="group bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800">
+                Start Investing
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Button>
             </Link>
-            <Link
-              href="#demo"
-              className="inline-flex items-center justify-center rounded-lg border-2 border-primary-600 px-8 py-3 text-lg font-semibold text-primary-600 transition hover:bg-primary-50"
-            >
-              Watch Demo
+            <Link href="/pricing">
+              <Button variant="outline" size="xl">
+                Practice Trading Free
+              </Button>
             </Link>
           </div>
-          <p className="mt-6 text-sm text-gray-500">
-            ⚠️ Simulated trading only. No real funds are traded.
-          </p>
+          <div className="mt-8 max-w-2xl mx-auto text-sm text-muted-foreground">
+            <p>
+              ✓ <strong>Practice Trading:</strong> Risk-free simulation with virtual funds
+              <br />
+              ✓ <strong>Real Investment:</strong> CMF-regulated with AI-powered returns
+            </p>
+          </div>
         </div>
       </section>
 
@@ -70,7 +56,7 @@ export default function HomePage() {
           <h2 className="mb-12 text-center text-4xl font-bold text-gray-900">
             Everything You Need to Trade
           </h2>
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             <FeatureCard
               icon={<Bot className="h-8 w-8" />}
               title="AI Trading Agents"
@@ -82,15 +68,66 @@ export default function HomePage() {
               description="Backtest strategies with comprehensive metrics: CAGR, Sharpe, Max Drawdown, and more."
             />
             <FeatureCard
-              icon={<TrendingUp className="h-8 w-8" />}
+              icon={<LineChart className="h-8 w-8" />}
               title="Professional Charts"
-              description="TradingView-powered charts with indicators, drawing tools, and real-time updates."
+              description="TradingView-powered charts with 20+ indicators, drawing tools, and real-time updates."
             />
             <FeatureCard
               icon={<Shield className="h-8 w-8" />}
               title="Risk-Free Learning"
               description="Practice with virtual funds. All trades are simulated with realistic market conditions."
             />
+            <FeatureCard
+              icon={<Zap className="h-8 w-8" />}
+              title="Real-Time Execution"
+              description="Realistic order execution with slippage modeling, fees, and margin requirements."
+            />
+            <FeatureCard
+              icon={<Globe className="h-8 w-8" />}
+              title="Multiple Markets"
+              description="Trade crypto, forex, indices, and futures—all in one simulated environment."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-20">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-12 text-center text-4xl font-bold text-gray-900">
+            How It Works
+          </h2>
+          <div className="grid gap-12 md:grid-cols-3 max-w-5xl mx-auto">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary text-2xl font-bold mb-4">
+                1
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Create Account</h3>
+              <p className="text-muted-foreground">
+                Sign up for free and get instant access to your simulated trading account with
+                $10,000 virtual balance.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary text-2xl font-bold mb-4">
+                2
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Choose Strategy</h3>
+              <p className="text-muted-foreground">
+                Subscribe to AI trading bots or trade manually using professional charts and
+                advanced order types.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary text-2xl font-bold mb-4">
+                3
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Learn & Improve</h3>
+              <p className="text-muted-foreground">
+                Monitor performance, backtest strategies, and refine your approach—all risk-free with
+                no real money.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -102,28 +139,17 @@ export default function HomePage() {
           <p className="mb-8 text-xl text-blue-100">
             Join thousands of traders learning CFD trading in a safe environment.
           </p>
-          <Link
-            href="/auth/signup"
-            className="inline-flex items-center rounded-lg bg-white px-8 py-3 text-lg font-semibold text-primary-600 transition hover:bg-blue-50"
-          >
-            Create Free Account
-            <ArrowRight className="ml-2 h-5 w-5" />
+          <Link href="/auth/signup">
+            <Button variant="secondary" size="xl" className="bg-white text-primary hover:bg-blue-50">
+              Create Free Account
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
           </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t bg-gray-50 py-8">
-        <div className="container mx-auto px-4 text-center text-sm text-gray-600">
-          <p>
-            © 2024 Tunicoin. All rights reserved. Simulated trading platform for educational
-            purposes only.
-          </p>
-          <p className="mt-2 text-xs text-gray-500">
-            Past simulated performance is not indicative of future results.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
