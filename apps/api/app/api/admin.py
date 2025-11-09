@@ -310,3 +310,197 @@ async def update_user_status(
         "message": f"User {'activated' if is_active else 'suspended'} successfully",
         "user": user,
     }
+
+
+# ==================== KYC Management ====================
+
+@router.get("/kyc/submissions")
+async def get_kyc_submissions(
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+    status: str = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Get all KYC submissions with optional status filter."""
+    
+    query = select(KYCSubmission).order_by(KYCSubmission.created_at.desc())
+    
+    if status and status != 'all':
+        query = query.where(KYCSubmission.status == status)
+    
+    query = query.limit(limit).offset(offset)
+    
+    result = await db.execute(query)
+    submissions = result.scalars().all()
+    
+    # Get total count
+    count_query = select(func.count(KYCSubmission.id))
+    if status and status != 'all':
+        count_query = count_query.where(KYCSubmission.status == status)
+    
+    count_result = await db.execute(count_query)
+    total = count_result.scalar_one()
+    
+    # Enrich with user email
+    enriched_submissions = []
+    for submission in submissions:
+        submission_dict = submission.dict() if hasattr(submission, 'dict') else vars(submission)
+        
+        # Get user email
+        user_result = await db.execute(
+            select(User).where(User.id == submission.user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if user:
+            submission_dict['user_email'] = user.email
+        
+        enriched_submissions.append(submission_dict)
+    
+    return {
+        "submissions": enriched_submissions,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.post("/kyc/submissions/{submission_id}/approve")
+async def approve_kyc_submission(
+    submission_id: str,
+    admin_notes: str = "",
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a KYC submission."""
+    
+    from uuid import UUID
+    
+    try:
+        submission_uuid = UUID(submission_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid submission ID format",
+        )
+    
+    # Get submission
+    submission_result = await db.execute(
+        select(KYCSubmission).where(KYCSubmission.id == submission_uuid)
+    )
+    submission = submission_result.scalar_one_or_none()
+    
+    if not submission:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KYC submission not found",
+        )
+    
+    if submission.status != 'pending':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot approve submission with status: {submission.status}",
+        )
+    
+    # Update submission status
+    submission.status = 'approved'
+    submission.admin_notes = admin_notes
+    submission.updated_at = datetime.utcnow()
+    db.add(submission)
+    
+    # Update user KYC status
+    user_result = await db.execute(
+        select(User).where(User.id == submission.user_id)
+    )
+    user = user_result.scalar_one_or_none()
+    if user:
+        user.kyc_status = 'approved'
+        db.add(user)
+    
+    # Activate investment accounts if they exist
+    accounts_result = await db.execute(
+        select(InvestmentAccount).where(
+            InvestmentAccount.user_id == submission.user_id,
+            InvestmentAccount.status == 'pending'
+        )
+    )
+    accounts = accounts_result.scalars().all()
+    
+    for account in accounts:
+        account.status = 'active'
+        db.add(account)
+    
+    await db.commit()
+    await db.refresh(submission)
+    
+    return {
+        "message": "KYC submission approved successfully",
+        "submission": submission,
+    }
+
+
+@router.post("/kyc/submissions/{submission_id}/reject")
+async def reject_kyc_submission(
+    submission_id: str,
+    admin_notes: str,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reject a KYC submission with admin notes."""
+    
+    from uuid import UUID
+    
+    if not admin_notes or not admin_notes.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin notes are required for rejection",
+        )
+    
+    try:
+        submission_uuid = UUID(submission_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid submission ID format",
+        )
+    
+    # Get submission
+    submission_result = await db.execute(
+        select(KYCSubmission).where(KYCSubmission.id == submission_uuid)
+    )
+    submission = submission_result.scalar_one_or_none()
+    
+    if not submission:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KYC submission not found",
+        )
+    
+    if submission.status != 'pending':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot reject submission with status: {submission.status}",
+        )
+    
+    # Update submission status
+    submission.status = 'rejected'
+    submission.admin_notes = admin_notes
+    submission.updated_at = datetime.utcnow()
+    db.add(submission)
+    
+    # Update user KYC status
+    user_result = await db.execute(
+        select(User).where(User.id == submission.user_id)
+    )
+    user = user_result.scalar_one_or_none()
+    if user:
+        user.kyc_status = 'rejected'
+        db.add(user)
+    
+    await db.commit()
+    await db.refresh(submission)
+    
+    return {
+        "message": "KYC submission rejected",
+        "submission": submission,
+    }
