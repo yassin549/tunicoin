@@ -10,6 +10,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/auth-context';
 import { investmentApi, type InvestmentAccount, type Deposit, type InvestmentReturn } from '@/lib/investment-api';
 import { useToast } from '@/hooks/use-toast';
+import { PortfolioChart } from '@/components/investment/portfolio-chart';
+
+interface PortfolioDataPoint {
+  time: string;
+  value: number;
+}
 
 export default function InvestmentDashboardPage() {
   const router = useRouter();
@@ -19,12 +25,71 @@ export default function InvestmentDashboardPage() {
   const [account, setAccount] = useState<InvestmentAccount | null>(null);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [returns, setReturns] = useState<InvestmentReturn[]>([]);
+  const [portfolioData, setPortfolioData] = useState<PortfolioDataPoint[]>([]);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/auth/signin?redirect=/dashboard/investments');
     }
   }, [user, isLoading, router]);
+
+  // Generate portfolio history from deposits and returns
+  const generatePortfolioHistory = (
+    deposits: Deposit[],
+    returns: InvestmentReturn[],
+    account: InvestmentAccount
+  ): PortfolioDataPoint[] => {
+    if (!account || deposits.length === 0) return [];
+
+    const history: PortfolioDataPoint[] = [];
+    const events: Array<{ date: Date; type: 'deposit' | 'return'; amount: number }> = [];
+
+    // Add confirmed deposits
+    deposits
+      .filter(d => d.status === 'confirmed' && d.confirmed_at)
+      .forEach(d => {
+        events.push({
+          date: new Date(d.confirmed_at!),
+          type: 'deposit',
+          amount: d.amount,
+        });
+      });
+
+    // Add returns
+    returns.forEach(r => {
+      events.push({
+        date: new Date(r.created_at),
+        type: 'return',
+        amount: r.amount,
+      });
+    });
+
+    // Sort events by date
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Generate cumulative balance over time
+    let balance = 0;
+    events.forEach(event => {
+      balance += event.amount;
+      history.push({
+        time: event.date.toISOString(),
+        value: balance,
+      });
+    });
+
+    // Add current balance as the last point
+    if (history.length > 0 && account.balance) {
+      const lastPoint = history[history.length - 1];
+      if (Math.abs(lastPoint.value - account.balance) > 0.01) {
+        history.push({
+          time: new Date().toISOString(),
+          value: account.balance,
+        });
+      }
+    }
+
+    return history;
+  };
 
   // Fetch investment data
   useEffect(() => {
@@ -49,6 +114,10 @@ export default function InvestmentDashboardPage() {
           
           setDeposits(depositsData);
           setReturns(returnsData);
+          
+          // Generate portfolio history
+          const history = generatePortfolioHistory(depositsData, returnsData, primaryAccount);
+          setPortfolioData(history);
         }
       } catch (error: any) {
         console.error('Failed to fetch investment data:', error);
@@ -248,13 +317,7 @@ export default function InvestmentDashboardPage() {
                 <CardDescription>Track your investment growth over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px] flex items-center justify-center bg-muted/10 rounded-lg border-2 border-dashed">
-                  <div className="text-center text-muted-foreground">
-                    <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No investment data yet</p>
-                    <p className="text-xs mt-1">Make your first deposit to see your portfolio</p>
-                  </div>
-                </div>
+                <PortfolioChart data={portfolioData} isLoading={isLoadingData} />
               </CardContent>
             </Card>
 

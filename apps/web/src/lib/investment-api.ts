@@ -113,7 +113,7 @@ export const investmentApi = {
 
   // Get investment returns for an account
   getReturns: async (accountId: string): Promise<InvestmentReturn[]> => {
-    const response = await apiClient.get(`/api/investment/returns?account_id=${accountId}`);
+    const response = await apiClient.get(`/api/investment/accounts/${accountId}/returns`);
     return response.data;
   },
 
