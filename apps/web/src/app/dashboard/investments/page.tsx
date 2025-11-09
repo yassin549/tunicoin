@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { investmentApi, type InvestmentAccount, type Deposit, type InvestmentReturn } from '@/lib/investment-api';
 import { useToast } from '@/hooks/use-toast';
 import { PortfolioChart } from '@/components/investment/portfolio-chart';
+import { DepositsTable } from '@/components/investment/deposits-table';
 
 interface PortfolioDataPoint {
   time: string;
@@ -324,17 +325,11 @@ export default function InvestmentDashboardPage() {
             {/* Deposits History */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Deposits</CardTitle>
+                <CardTitle>Deposit History</CardTitle>
                 <CardDescription>Your deposit transaction history</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Wallet className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No deposits yet</p>
-                    <p className="text-xs mt-1">Start investing by making your first deposit</p>
-                  </div>
-                </div>
+                <DepositsTable deposits={deposits} isLoading={isLoadingData} />
               </CardContent>
             </Card>
 
