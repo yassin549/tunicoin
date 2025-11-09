@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/auth-context';
-import { investmentApi, type InvestmentAccount, type Deposit, type InvestmentReturn } from '@/lib/investment-api';
+import { investmentApi, type InvestmentAccount, type Deposit, type InvestmentReturn, type Payout } from '@/lib/investment-api';
 import { useToast } from '@/hooks/use-toast';
 import { PortfolioChart } from '@/components/investment/portfolio-chart';
 import { DepositsTable } from '@/components/investment/deposits-table';
 import { ReturnsHistory } from '@/components/investment/returns-history';
+import { PayoutModal } from '@/components/investment/payout-modal';
 
 interface PortfolioDataPoint {
   time: string;
@@ -27,7 +28,9 @@ export default function InvestmentDashboardPage() {
   const [account, setAccount] = useState<InvestmentAccount | null>(null);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [returns, setReturns] = useState<InvestmentReturn[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
   const [portfolioData, setPortfolioData] = useState<PortfolioDataPoint[]>([]);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -108,14 +111,16 @@ export default function InvestmentDashboardPage() {
           const primaryAccount = accounts[0]; // Use first active account
           setAccount(primaryAccount);
           
-          // Fetch deposits and returns for this account
-          const [depositsData, returnsData] = await Promise.all([
+          // Fetch deposits, returns, and payouts for this account
+          const [depositsData, returnsData, payoutsData] = await Promise.all([
             investmentApi.getDeposits(primaryAccount.id),
             investmentApi.getReturns(primaryAccount.id),
+            investmentApi.getPayouts(),
           ]);
           
           setDeposits(depositsData);
           setReturns(returnsData);
+          setPayouts(payoutsData);
           
           // Generate portfolio history
           const history = generatePortfolioHistory(depositsData, returnsData, primaryAccount);
@@ -137,6 +142,17 @@ export default function InvestmentDashboardPage() {
       fetchInvestmentData();
     }
   }, [user, isLoading, toast]);
+
+  const handlePayoutSuccess = () => {
+    toast({
+      title: 'Success',
+      description: 'Payout request submitted successfully. Processing may take 1-3 business days.',
+    });
+    // Refresh payouts
+    if (account) {
+      investmentApi.getPayouts().then(setPayouts).catch(console.error);
+    }
+  };
 
   if (isLoading || !user) {
     return (
@@ -359,7 +375,13 @@ export default function InvestmentDashboardPage() {
                   <DollarSign className="mr-2 h-5 w-5" />
                   Make Deposit
                 </Button>
-                <Button className="w-full" size="lg" variant="outline" disabled>
+                <Button
+                  className="w-full"
+                  size="lg"
+                  variant="outline"
+                  onClick={() => setShowPayoutModal(true)}
+                  disabled={!account || account.status !== 'active' || (account.balance || 0) < 50}
+                >
                   <Wallet className="mr-2 h-5 w-5" />
                   Request Payout
                 </Button>
@@ -437,9 +459,54 @@ export default function InvestmentDashboardPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Pending Payouts */}
+            {payouts.length > 0 && (
+              <Card className="border-orange-200 bg-orange-50/50">
+                <CardHeader>
+                  <CardTitle className="text-orange-900">Pending Payouts</CardTitle>
+                  <CardDescription className="text-orange-700">
+                    Withdrawal requests awaiting processing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {payouts.filter(p => p.status === 'pending').map((payout) => (
+                      <div
+                        key={payout.id}
+                        className="flex items-center justify-between p-3 bg-white rounded-lg border border-orange-200"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            ${payout.amount.toFixed(2)} → {payout.currency}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Requested: {new Date(payout.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                          Pending
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Payout Modal */}
+      {account && (
+        <PayoutModal
+          isOpen={showPayoutModal}
+          onClose={() => setShowPayoutModal(false)}
+          accountId={account.id}
+          availableBalance={account.balance || 0}
+          onSuccess={handlePayoutSuccess}
+        />
+      )}
     </div>
   );
 }

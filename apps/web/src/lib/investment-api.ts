@@ -117,9 +117,9 @@ export const investmentApi = {
     return response.data;
   },
 
-  // Get payouts for an account
-  getPayouts: async (accountId: string): Promise<Payout[]> => {
-    const response = await apiClient.get(`/api/investment/payouts?account_id=${accountId}`);
+  // Get payouts for current user
+  getPayouts: async (): Promise<Payout[]> => {
+    const response = await apiClient.get('/api/investment/payouts');
     return response.data;
   },
 
@@ -127,8 +127,9 @@ export const investmentApi = {
   requestPayout: async (data: {
     investment_account_id: string;
     amount: number;
+    payout_method: string;
+    destination: string;
     currency: string;
-    crypto_address: string;
   }): Promise<Payout> => {
     const response = await apiClient.post('/api/investment/payouts', data);
     return response.data;
