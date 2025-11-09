@@ -14,6 +14,7 @@ from app.api.backtests import router as backtests_router
 from app.api.crypto import router as crypto_router
 from app.api.investment import router as investment_router
 from app.api.kyc import router as kyc_router
+from app.api.admin import router as admin_router
 from app.api.ws import router as ws_router
 
 app = FastAPI(
@@ -84,6 +85,7 @@ app.include_router(backtests_router, prefix="/api/backtests", tags=["Backtests"]
 app.include_router(crypto_router, prefix="/api/crypto", tags=["Crypto Payments"])
 app.include_router(investment_router, prefix="/api", tags=["Investment Management"])
 app.include_router(kyc_router, prefix="/api", tags=["KYC Verification"])
+app.include_router(admin_router, prefix="/api", tags=["Admin"])
 
 # Register WebSocket router (no prefix needed for WebSocket)
 app.include_router(ws_router, tags=["WebSocket"])
