@@ -778,3 +778,210 @@ async def generate_bulk_returns(
         "errors": errors if errors else None,
         "message": f"Successfully generated returns for {generated_count} accounts",
     }
+
+
+# ==================== Payout Management ====================
+
+@router.get("/payouts")
+async def get_all_payouts(
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+    status: str = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Get all payout requests with filters."""
+    
+    query = select(Payout).order_by(Payout.created_at.desc())
+    
+    if status and status != 'all':
+        query = query.where(Payout.status == status)
+    
+    query = query.limit(limit).offset(offset)
+    
+    result = await db.execute(query)
+    payouts = result.scalars().all()
+    
+    # Get total count
+    count_query = select(func.count(Payout.id))
+    if status and status != 'all':
+        count_query = count_query.where(Payout.status == status)
+    
+    count_result = await db.execute(count_query)
+    total = count_result.scalar_one()
+    
+    # Enrich with user information
+    enriched_payouts = []
+    for payout in payouts:
+        payout_dict = payout.dict() if hasattr(payout, 'dict') else vars(payout)
+        
+        # Get investment account and user
+        account_result = await db.execute(
+            select(InvestmentAccount).where(InvestmentAccount.id == payout.investment_account_id)
+        )
+        account = account_result.scalar_one_or_none()
+        
+        if account:
+            user_result = await db.execute(
+                select(User).where(User.id == account.user_id)
+            )
+            user = user_result.scalar_one_or_none()
+            if user:
+                payout_dict['user_email'] = user.email
+                payout_dict['user_name'] = user.full_name
+        
+        enriched_payouts.append(payout_dict)
+    
+    return {
+        "payouts": enriched_payouts,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/payouts/stats")
+async def get_payout_stats(
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get payout statistics."""
+    
+    # Pending count and amount
+    pending_count_result = await db.execute(
+        select(func.count(Payout.id)).where(Payout.status == 'pending')
+    )
+    pending_count = pending_count_result.scalar_one()
+    
+    pending_amount_result = await db.execute(
+        select(func.sum(Payout.amount)).where(Payout.status == 'pending')
+    )
+    pending_amount = float(pending_amount_result.scalar_one() or 0)
+    
+    # Approved count and amount
+    approved_count_result = await db.execute(
+        select(func.count(Payout.id)).where(Payout.status == 'approved')
+    )
+    approved_count = approved_count_result.scalar_one()
+    
+    approved_amount_result = await db.execute(
+        select(func.sum(Payout.amount)).where(Payout.status == 'approved')
+    )
+    approved_amount = float(approved_amount_result.scalar_one() or 0)
+    
+    return {
+        "pending_count": pending_count,
+        "pending_amount": pending_amount,
+        "approved_count": approved_count,
+        "approved_amount": approved_amount,
+    }
+
+
+@router.post("/payouts/{payout_id}/approve")
+async def approve_payout(
+    payout_id: str,
+    admin_notes: str = None,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a payout request."""
+    
+    from uuid import UUID
+    
+    try:
+        payout_uuid = UUID(payout_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payout ID format")
+    
+    # Get payout
+    payout_result = await db.execute(
+        select(Payout).where(Payout.id == payout_uuid)
+    )
+    payout = payout_result.scalar_one_or_none()
+    
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    
+    if payout.status != 'pending':
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot approve payout with status: {payout.status}"
+        )
+    
+    # Update payout status
+    payout.status = 'approved'
+    payout.processed_at = datetime.utcnow()
+    if admin_notes:
+        payout.admin_notes = admin_notes
+    
+    db.add(payout)
+    await db.commit()
+    await db.refresh(payout)
+    
+    return {
+        "message": "Payout approved successfully",
+        "payout": payout,
+    }
+
+
+@router.post("/payouts/{payout_id}/reject")
+async def reject_payout(
+    payout_id: str,
+    admin_notes: str,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reject a payout request."""
+    
+    from uuid import UUID
+    
+    if not admin_notes or not admin_notes.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Admin notes are required for rejection"
+        )
+    
+    try:
+        payout_uuid = UUID(payout_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payout ID format")
+    
+    # Get payout
+    payout_result = await db.execute(
+        select(Payout).where(Payout.id == payout_uuid)
+    )
+    payout = payout_result.scalar_one_or_none()
+    
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    
+    if payout.status != 'pending':
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot reject payout with status: {payout.status}"
+        )
+    
+    # Get investment account to refund
+    account_result = await db.execute(
+        select(InvestmentAccount).where(InvestmentAccount.id == payout.investment_account_id)
+    )
+    account = account_result.scalar_one_or_none()
+    
+    if account:
+        # Refund the amount back to account balance
+        account.balance += payout.amount
+        db.add(account)
+    
+    # Update payout status
+    payout.status = 'rejected'
+    payout.processed_at = datetime.utcnow()
+    payout.admin_notes = admin_notes
+    
+    db.add(payout)
+    await db.commit()
+    await db.refresh(payout)
+    
+    return {
+        "message": "Payout rejected and amount refunded",
+        "payout": payout,
+    }
