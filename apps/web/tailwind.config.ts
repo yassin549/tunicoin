@@ -61,7 +61,7 @@ const config: Config = {
         },
         success: 'hsl(var(--success))',
         warning: 'hsl(var(--warning))',
-        info: 'hsl(var(--info))'},
+        info: 'hsl(var(--info))',
       },
       borderRadius: {
         lg: 'var(--radius)',
