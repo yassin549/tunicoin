@@ -985,3 +985,189 @@ async def reject_payout(
         "message": "Payout rejected and amount refunded",
         "payout": payout,
     }
+
+
+# ==================== Tier Management ====================
+
+@router.get("/tiers")
+async def get_all_tiers(
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all investment tiers."""
+    
+    result = await db.execute(
+        select(InvestmentTier).order_by(InvestmentTier.min_deposit.asc())
+    )
+    tiers = result.scalars().all()
+    
+    return {
+        "tiers": [tier.dict() if hasattr(tier, 'dict') else vars(tier) for tier in tiers],
+        "total": len(tiers),
+    }
+
+
+@router.post("/tiers")
+async def create_tier(
+    name: str,
+    description: str,
+    min_deposit: float,
+    return_rate: float,
+    is_active: bool = True,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new investment tier."""
+    
+    if min_deposit <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Minimum deposit must be greater than 0"
+        )
+    
+    if return_rate <= 0 or return_rate > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Return rate must be between 0 and 100"
+        )
+    
+    # Check if tier name already exists
+    existing_result = await db.execute(
+        select(InvestmentTier).where(InvestmentTier.name == name)
+    )
+    existing_tier = existing_result.scalar_one_or_none()
+    
+    if existing_tier:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tier with name '{name}' already exists"
+        )
+    
+    # Create tier
+    tier = InvestmentTier(
+        name=name,
+        description=description,
+        min_deposit=min_deposit,
+        return_rate=return_rate,
+        is_active=is_active,
+    )
+    
+    db.add(tier)
+    await db.commit()
+    await db.refresh(tier)
+    
+    return {
+        "message": "Tier created successfully",
+        "tier": tier,
+    }
+
+
+@router.put("/tiers/{tier_id}")
+async def update_tier(
+    tier_id: str,
+    name: str,
+    description: str,
+    min_deposit: float,
+    return_rate: float,
+    is_active: bool,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update an investment tier."""
+    
+    from uuid import UUID
+    
+    try:
+        tier_uuid = UUID(tier_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid tier ID format")
+    
+    if min_deposit <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Minimum deposit must be greater than 0"
+        )
+    
+    if return_rate <= 0 or return_rate > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Return rate must be between 0 and 100"
+        )
+    
+    # Get tier
+    tier_result = await db.execute(
+        select(InvestmentTier).where(InvestmentTier.id == tier_uuid)
+    )
+    tier = tier_result.scalar_one_or_none()
+    
+    if not tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    
+    # Check if new name conflicts with another tier
+    if tier.name != name:
+        existing_result = await db.execute(
+            select(InvestmentTier).where(
+                InvestmentTier.name == name,
+                InvestmentTier.id != tier_uuid
+            )
+        )
+        existing_tier = existing_result.scalar_one_or_none()
+        
+        if existing_tier:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tier with name '{name}' already exists"
+            )
+    
+    # Update tier
+    tier.name = name
+    tier.description = description
+    tier.min_deposit = min_deposit
+    tier.return_rate = return_rate
+    tier.is_active = is_active
+    
+    db.add(tier)
+    await db.commit()
+    await db.refresh(tier)
+    
+    return {
+        "message": "Tier updated successfully",
+        "tier": tier,
+    }
+
+
+@router.patch("/tiers/{tier_id}/toggle-status")
+async def toggle_tier_status(
+    tier_id: str,
+    current_admin: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Toggle tier active status."""
+    
+    from uuid import UUID
+    
+    try:
+        tier_uuid = UUID(tier_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid tier ID format")
+    
+    # Get tier
+    tier_result = await db.execute(
+        select(InvestmentTier).where(InvestmentTier.id == tier_uuid)
+    )
+    tier = tier_result.scalar_one_or_none()
+    
+    if not tier:
+        raise HTTPException(status_code=404, detail="Tier not found")
+    
+    # Toggle status
+    tier.is_active = not tier.is_active
+    
+    db.add(tier)
+    await db.commit()
+    await db.refresh(tier)
+    
+    return {
+        "message": f"Tier {'activated' if tier.is_active else 'deactivated'} successfully",
+        "tier": tier,
+    }
