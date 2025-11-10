@@ -85,7 +85,29 @@ app.include_router(backtests_router, prefix="/api/backtests", tags=["Backtests"]
 app.include_router(crypto_router, prefix="/api/crypto", tags=["Crypto Payments"])
 app.include_router(investment_router, prefix="/api", tags=["Investment Management"])
 app.include_router(kyc_router, prefix="/api", tags=["KYC Verification"])
-app.include_router(admin_router, prefix="/api", tags=["Admin"])
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+
+# Temporary endpoint to make user admin (remove after use)
+@app.post("/api/make-admin-temp")
+async def make_admin_temp(email: str, secret: str, db: AsyncSession = Depends(get_db)):
+    """Temporary endpoint to make a user admin. Remove after use!"""
+    # Simple secret check (change this to something only you know)
+    if secret != "CHANGE_ME_SECRET_123":
+        raise HTTPException(status_code=403, detail="Invalid secret")
+    
+    from app.models.user import User
+    
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.is_admin = True
+    db.add(user)
+    await db.commit()
+    
+    return {"message": f"User {email} is now an admin!", "user_id": str(user.id)}
 
 # Register WebSocket router (no prefix needed for WebSocket)
 app.include_router(ws_router, tags=["WebSocket"])
